@@ -60,7 +60,7 @@ $ node pets.js read 1
 { age: 5, kind: 'snake', name: 'Buttons' }
 ```
 
-Additionally, your application must handle the `read` subcommand when given an out-of-bound index. In this case, it must display a more specific usage to the standard error channel and exit with a non-zero exit code.
+Additionally, your application must handle the `read` subcommand when given an out-of-bound index. In this case, it must display a more specific usage to the standard error channel and exit with a non-zero exit code.corn
 
 ```shell
 $ node pets.js read 2
