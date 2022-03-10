@@ -5,77 +5,84 @@ const fs = require('fs');
 app.use(express.json());
 
 
+const { Pool } = require('pg')
+
+const pool = new Pool ({
+    database: "petshop",
+});
+
+pool.query('SELECT * FROM pets;', (err, result) => {
+    console.log(err, res)
+    console.log(result.rows)
+})
+
 //get request
 app.get('/pets', (req, res) => {
-    fs.readFile('./pets.json', 'utf8', (err,data) => {
+    pool.query('SELECT * FROM pets;', (err, result)=>{
         if (err) throw err;
-        res.send(data)
+
+        res.send(result.rows);
     })
+
+    // fs.readFile('./pets.json', 'utf8', (err,data) => {
+    //     if (err) throw err;
+    //     res.send(data);
+    // })
 })
 
 
 //get request for certain index
-app.get('/pets/:index', (req, res) => {
-    fs.readFile('./pets.json', 'utf8', (err,data) => {
+app.get('/pets/:id', (req, res) => {
+    const id = req.params.id;
+    pool.query(`SELECT * FROM pets WHERE id=$1;`,[id], (err, result)=>{
         if (err) throw err;
 
-        const parsedData = JSON.parse(data)
-        const index = req.params.index;
 
-        if (index >= parsedData.length || index < 0){
-            res.statusCode = 404
-            res.send('Index not found');
-            return
-        }
-
-        res.send((parsedData[index]))
+        res.send(result.rows[0]);
     })
 })
 
 //post request
 app.post('/pets', (req, res) => {
-    const pet = {};
-
-    pet.age = req.body.age;
-    pet.kind = req.body.kind;
-    pet.name = req.body.name;
-
-    fs.readFile('./pets.json', 'utf8', (err, data) => {
+    const {age, name, kind} = req.body;
+    pool.query('INSERT INTO pets(age, name, kind) VALUES($1, $2, $3) RETURNING *;',
+    [age, name, kind], (err, result) =>{
         if (err) throw err;
-
-        let parsedData = JSON.parse(data);
-        parsedData.push(pet);
-
-        fs.writeFile('./pets.json', JSON.stringify(parsedData), (err)=> {
-            if (err) throw err;
-        })
-        res.json(parsedData);
+        res.send(result.rows[0]);
     })
 })
 
 
+
 //patch request
-app.patch('./pets/:index', (err, data) => {
-    if (err) throw err;
-
-    const index = req.params.index;
-
-    fs.readFile('./pets.json', 'utf8', (err, data) => {
-        if (err) throw err;
-
-        let patchData = req.body
-        let parsedData = data[index];
-        parsedData = {...parsedData, ...patchData};
-
-        fs.writeFile('./pets.json', JSON.stringify(newData), (err)=> {
-            if (err) throw err;
-        });
-        res.json(parsedData);
-    });
+app.patch('/pets/:id', (req, res) => {
+    const {age, name, kind} = req.body;
+    const id = req.params.id;
+    const query = `
+    UPDATE pets SET
+        age = COALESCE($1, age),
+        name = COALESCE($2, name),
+        kind = COALESCE($3, kind)
+    WHERE id = $4
+    RETURNING *;`;
+    pool.query(query, [age, name, kind, id]
+    ).then((result) =>{
+        res.send(result.rows);
+    })
+    .catch( (err) => {
+        res.sendStatus(500);
+    })
 });
 
 
 //delete request
+app.delete('/pets/:id', (req,res)=>{
+    const id = req.params.id;
+    pool.query('DELETE FROM pets WHERE id=$1;',[id])
+    .then((result)=> res.send('deleted'))
+    .catch((err)=>{ console.log(err) 
+    res.status(500)})
+})
 
 
 
